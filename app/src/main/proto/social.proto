@@ -1,0 +1,177 @@
+syntax = "proto3";
+
+
+option java_multiple_files = true;
+option java_package = "com.kotlang.social";
+option java_outer_classname = "SocialInternal";
+
+option go_package = "github.com/Kotlang/socialGo/generated";
+
+package social;
+
+message SocialStatusResponse {
+  string status = 1;
+}
+
+message SocialProfile {
+  string photoUrl = 1;
+  string name = 2;
+  string occupation = 3;
+  string userId = 4;
+}
+
+service UserPost {
+  //create new post or reply to a post or add answer to a post
+  //referencePost would be used to post answer or comment on a feed post
+  rpc CreatePost(UserPostRequest) returns (UserPostProto) {}
+  rpc DeletePost(DeletePostRequest) returns (SocialStatusResponse) {}
+  rpc GetFeed(GetFeedRequest) returns (FeedResponse) {}
+  rpc GetMediaUploadUrl(MediaUploadRequest) returns (MediaUploadURL) {}
+
+  // Returns post with it's text, media and top 10 comments/answers.
+  // For more comments/answers use GetFeed API with referencePost = postId.
+  rpc GetPost(GetPostRequest) returns (UserPostProto) {}
+  rpc GetBookmarks(GetBookmarksRequest) returns (FeedResponse) {}
+  rpc GetTags(GetTagsRequest) returns (TagListResponse) {}
+
+  // directly takes input of post image or video and uploads the media.
+  rpc UploadPostMedia(stream UploadPostMediaRequest) returns (UploadPostMediaResponse) {}
+
+  // Called from frontend before CreatePost.
+  // Will be usually called whenever a user pastes a link in post - To show preview as user is creating post.
+  // Also, before createPost - Idempotency.
+  rpc ParsePost(UserPostRequest) returns (UserPostRequest) {}
+}
+
+// Can be used for uploaded images/videos into our storage bucket.
+// Also it can be used for youtube preview, vimeo preview, tik-tok, etc.
+message MediaUrl {
+  string url = 1;
+
+  // Ex: image/jpeg, image/png, video/mp4, video/quicktime, audio/mpeg.
+  string mimeType = 2;
+}
+
+message WebPreview {
+  string title = 1;
+  string previewImage = 2;
+  string url = 3;
+  string description = 4;
+}
+
+message UserPostRequest {
+  //can be markup like html containing images
+  //Question markup in case of QnA_QUESTION
+  //Answer markup in case of QnA_ANSWER
+  //Just markup in case FEED_POST
+  string post = 1;
+  repeated string tags = 2;
+  //in case of QnA_ANSWER use this field to refer to questionId
+  //to reply/comment on a post use original postId as referencePost
+  string referencePost = 3;
+  string title = 4;
+
+  // List of media urls uploaded via UploadPostMedia API.
+  repeated MediaUrl mediaUrls = 5;
+
+  // Populated by backend by parsing the webpage urls in post = 1;
+  repeated WebPreview webPreviews = 7;
+
+  enum PostType {
+    FEED_POST = 0;
+    QnA_QUESTION = 1;
+    QnA_ANSWER = 2;
+  }
+  // For answer or comment on a post use postType as QnA_ANSWER.
+  PostType postType = 6;
+}
+
+message UserPostProto {
+  string post = 1;
+  repeated string tags = 2;
+  string postId = 3;
+  repeated MediaUrl mediaUrls = 4;
+  repeated WebPreview webPreviews = 16;
+  int64 createdOn = 5;
+  string referencePost = 6;
+  string userId = 7;
+  SocialProfile authorInfo = 13;
+  int32 numLikes = 8;
+  int32 numReplies = 9;
+  int32 numShares = 10;
+  string title = 11;
+  bool hasFeedUserLiked = 12;
+  repeated UserPostProto answersThread = 15;
+}
+
+message DeletePostRequest {
+  string id = 1;
+}
+
+message FeedFilters {
+  string tag = 1;
+  string userId = 2;
+}
+
+message GetFeedRequest{
+  enum PostType {
+    FEED_POST = 0;
+    QnA_QUESTION = 1;
+  }
+  PostType postType = 1;
+  FeedFilters filters = 2;
+
+  string referencePost = 5;
+
+  //pagination
+  //pageNumber starting from 0
+  int32 pageSize = 3;
+  int32 pageNumber = 4;
+}
+message FeedResponse{
+  repeated UserPostProto posts = 1;
+  int32 pageNumber = 2;
+  int32 pageSize = 3;
+  int32 totalPages = 4;
+}
+
+message MediaUploadRequest {
+  // jpg or png or mp4
+  string mediaExtension = 1;
+}
+
+message GetPostRequest {
+  string postId = 1;
+}
+
+message GetBookmarksRequest {
+  //pagination
+  //pageNumber starting from 0
+  int32 pageSize = 3;
+  int32 pageNumber = 4;
+}
+
+message GetTagsRequest {}
+
+message Tag {
+  string Tag = 1;
+  string TagDescription = 2;
+  int32 NumPosts = 3;
+}
+
+message TagListResponse {
+  repeated Tag tags = 1;
+}
+
+message MediaUploadURL {
+  string uploadUrl = 1;
+  string mediaUrl = 2;
+}
+
+message UploadPostMediaRequest {
+  bytes chunkData = 1;
+}
+
+message UploadPostMediaResponse {
+  string uploadPath = 1;
+}
